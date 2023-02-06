@@ -70,3 +70,21 @@ begin
   delete from MyTable
   where id = p_id;
 end;
+
+create or replace function calculate_annual_compensation (monthly_salary number, annual_bonus_percentage number)
+return number
+is
+begin
+  if monthly_salary <= 0 then
+    RAISE_APPLICATION_ERROR(-20000, 'Invalid monthly salary');
+  end if;
+
+  if annual_bonus_percentage <= 0 then
+    RAISE_APPLICATION_ERROR(-20000, 'Invalid annual bonus percentage');
+  end if;
+
+  return (1 + annual_bonus_percentage / 100) * 12 * monthly_salary;
+end;
+
+select calculate_annual_compensation(1500, 50) from dual;
+
