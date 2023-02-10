@@ -5,8 +5,8 @@ CREATE TABLE MyTable (id NUMBER, val NUMBER);
 DECLARE
   i INT := 1;
 BEGIN
-  FOR i IN 1..10000 LOOP
-    INSERT INTO MyTable (id, val) VALUES (i, TRUNC(DBMS_RANDOM.value(1, 1000000)));
+  FOR i IN 1..100 LOOP
+    INSERT INTO MyTable (id, val) VALUES (i, trunc(DBMS_RANDOM.value(1, 1000000)));
   END LOOP;
 END;
 
@@ -24,13 +24,13 @@ begin
       from   MyTable
       where  MOD(val, 2) != 0;
       
-      IF even > odd THEN
+      if even > odd then
         return 'TRUE';
-      ELSIF even < odd THEN
+      elsif even < odd then
         return 'FALSE';
-      ELSE
-        RETURN 'EQUAL';
-      END IF;
+      else
+        return 'EQUAL';
+      end if;
 end comp_odd_even;
 
 select comp_odd_even() from dual;
@@ -76,11 +76,11 @@ return number
 is
 begin
   if monthly_salary <= 0 then
-    RAISE_APPLICATION_ERROR(-20000, 'Invalid monthly salary');
+    raise_application_error(-20000, 'Invalid monthly salary');
   end if;
 
   if annual_bonus_percentage <= 0 then
-    RAISE_APPLICATION_ERROR(-20000, 'Invalid annual bonus percentage');
+    raise_application_error(-20000, 'Invalid annual bonus percentage');
   end if;
 
   return (1 + annual_bonus_percentage / 100) * 12 * monthly_salary;
