@@ -46,16 +46,40 @@ begin
 end;
 
 create or replace trigger tr_insert_student_fk
-before insert on students
-for each row
+    before insert on students
+    for each row
 declare
-  v_count int;
+    v_count int;
 begin
-  select count(*) into v_count
-  from groups
-  where groups.id = :new.group_id;
+    select count(*) into v_count
+    from groups
+    where groups.id = :new.group_id;
 
-  if v_count = 0 then
-    raise_application_error(-20000, 'Group ID does not exist');
-  end if;
+    if v_count = 0 then
+        raise_application_error(-20000, 'Group ID does not exist');
+    end if;
 end;
+
+create or replace trigger students_log
+    after insert or update or delete on students
+    for each row
+declare
+    v_username varchar2(30) := USER;
+    v_date date := SYSDATE;
+    v_operation varchar2(20);
+begin
+    if inserting then
+        v_operation := 'INSERT';
+        insert into students_log (username, date_of_action, operation, stud_id, stud_name, stud_group_id)
+        values (v_username, v_date, v_operation, :new.id, :new.name, :new.group_id);
+    elsif updating then
+        v_operation := 'UPDATE';
+        insert into students_log (username, date_of_action, operation, stud_id, stud_name, stud_group_id)
+        values (v_username, v_date, v_operation, :new.id, :new.name, :new.group_id);
+    elsif deleting then
+        v_operation := 'DELETE';
+        insert into students_log (username, date_of_action, operation, stud_id, stud_name, stud_group_id)
+        values (v_username, v_date, v_operation, :old.id, :old.name, :old.group_id);
+    end if;
+end;
+
