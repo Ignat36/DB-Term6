@@ -83,3 +83,16 @@ begin
     end if;
 end;
 
+create or replace procedure restore_students_info_by_date (date_time in timestamp)
+as
+begin
+  delete from students;
+
+  insert into students (id, name, group_id)
+  select stud_id, stud_name, stud_group_id
+  from students_log
+  where date_of_action < date_time;
+end;
+
+
+
