@@ -60,7 +60,7 @@ begin
     end if;
 end;
 
-create or replace trigger students_log
+create or replace trigger tr_students_logging
     after insert or update or delete on students
     for each row
 declare
@@ -93,6 +93,31 @@ begin
   from students_log
   where date_of_action < date_time;
 end;
+
+create or replace trigger tr_group_c_val_students_update
+after update on students
+for each row
+begin
+  if (:old.group_id != :new.group_id) then
+    update groups set c_val = c_val - 1 where id = :old.group_id;
+    update groups set c_val = c_val + 1 where id = :new.group_id;
+  end if;
+end;
+
+create or replace trigger tr_group_c_val_students_insert
+after insert on students
+for each row
+begin
+  update groups set c_val = c_val + 1 where id = :new.group_id;
+end;
+
+create or replace trigger tr_group_c_val_students_delete
+after delete on students
+for each row
+begin
+  update groups set c_val = c_val - 1 where id = :old.group_id;
+end;
+
 
 
 
