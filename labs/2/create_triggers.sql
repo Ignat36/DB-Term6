@@ -30,7 +30,7 @@ declare
     v_count int;
 begin
     select count(*) into v_count
-    from groups
+    from view_groups
     where name = :new.name;
 
     if v_count > 0 then

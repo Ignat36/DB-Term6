@@ -5,7 +5,7 @@ CREATE TABLE MyTable (id NUMBER, val NUMBER);
 DECLARE
   i INT := 1;
 BEGIN
-  FOR i IN 1..100 LOOP
+  FOR i IN 1..10 LOOP
     INSERT INTO MyTable (id, val) VALUES (i, trunc(DBMS_RANDOM.value(1, 1000000)));
   END LOOP;
 END;
@@ -35,15 +35,31 @@ end comp_odd_even;
 
 select comp_odd_even() from dual;
 
+drop function generate_insert_command;
 create or replace function generate_insert_command (
-  in_id in number,
-  in_val in number
-) return VARCHAR2 is
+  in_id in int
+) return varchar2 is
+    v_count number;
+    res number;
 begin
-  return 'INSERT INTO MyTable (id, val) VALUES (' || in_id || ', ' || in_val || ');';
-end;
 
-select generate_insert_command(10, 666) from dual;
+   select count(*) into v_count
+   from MyTable
+   where in_id = id;
+
+   if v_count != 1 then
+       raise_application_error(-20000, 'Invalid input 466546');
+   end if;
+
+   select val into res
+    from MyTable
+    where in_id = id;
+
+   return 'insert into MyTable (id, val) values (' || in_id || ' ,' || res || ');';
+
+end generate_insert_command;
+
+select generate_insert_command(1) from dual;
 
 create or replace procedure insert_into_mytable (
   p_id in number,
