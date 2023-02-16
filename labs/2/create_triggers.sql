@@ -3,6 +3,7 @@ create or replace trigger tr_students_unique_id
     for each row
 declare
     v_count int;
+    pragma autonomous_transaction;
 begin
     select count(*) into v_count
     from students
@@ -18,6 +19,8 @@ create sequence students_seq start with 1;
 create or replace trigger tr_students_auto_increment_id
     before insert on students
     for each row
+declare
+    pragma autonomous_transaction;
 begin
     select students_seq.nextval into :new.id
     from dual;
@@ -28,9 +31,10 @@ create or replace trigger tr_groups_unique_name
     for each row
 declare
     v_count int;
+    pragma autonomous_transaction;
 begin
     select count(*) into v_count
-    from view_groups
+    from groups
     where name = :new.name;
 
     if v_count > 0 then
@@ -85,13 +89,23 @@ end;
 
 create or replace procedure restore_students_info_by_date (date_time in timestamp)
 as
+    cur_date date := SYSDATE;
 begin
   delete from students;
 
-  insert into students (id, name, group_id)
-  select stud_id, stud_name, stud_group_id
-  from students_log
-  where date_of_action < date_time;
+  for stud in (select * from students_log where date_of_action <= date_time ORDER BY date_of_action ASC) LOOP
+      if stud.operation = 'INSERT' then
+        insert into students (id, name, group_id) values (stud.stud_id, stud.stud_name, stud.stud_group_id);
+      elsif stud.operation = 'UPDATE' then
+        update students set group_id = stud.stud_group_id, name = stud.stud_name where stud.stud_id = id;
+      elsif stud.operation = 'DELETE' then
+        delete from students where stud.stud_id = id;
+      end if;
+  end loop;
+
+  delete from STUDENTS_LOG
+  where DATE_OF_ACTION >= cur_date;
+
 end;
 
 create or replace trigger tr_group_c_val_students_update

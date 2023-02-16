@@ -14,7 +14,6 @@ create table students (
   name varchar2(100),
   group_id number,
   constraint pk_students primary key (id)
-  -- constraint fk_group_id foreign key (group_id) references groups (id) --
 );
 
 create table students_log (
