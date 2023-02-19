@@ -1,11 +1,11 @@
 -- Create the first schema
 CREATE USER c##dev_user IDENTIFIED BY dev_password;
 GRANT CONNECT, RESOURCE, CREATE VIEW, CREATE PROCEDURE TO c##dev_user;
-
 -- Create a table in the C##DEV_USER schema that does not exist in the C##PROD_USER schema
 CREATE TABLE C##DEV_USER.departments (
   id NUMBER PRIMARY KEY,
-  name VARCHAR2(50)
+  name VARCHAR2(50),
+  manager_id NUMBER
 );
 
 -- Create a table in the C##DEV_USER schema
@@ -14,8 +14,13 @@ CREATE TABLE C##DEV_USER.employee (
   name VARCHAR2(50),
   department_id NUMBER(4),
   salary NUMBER,
-  FOREIGN KEY (department_id) REFERENCES C##DEV_USER.departments(id)
+  CONSTRAINT fk_department_id FOREIGN KEY (department_id) REFERENCES C##DEV_USER.departments(id)
 );
+
+alter table C##DEV_USER.departments
+add constraint fk_manager_id
+foreign key (manager_id)
+references C##DEV_USER.employee (id);
 
 CREATE TABLE C##DEV_USER.CUSTOMERS (
   CUSTOMER_ID NUMBER(10) PRIMARY KEY,

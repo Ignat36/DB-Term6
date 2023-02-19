@@ -6,8 +6,8 @@ drop table C##PROD_USER.EMPLOYEE;
 
 -- Create a table in the C##DEV_USER schema that does not exist in the C##PROD_USER schema
 CREATE TABLE C##PROD_USER.departments (
-  id NUMBER PRIMARY KEY,
-  name VARCHAR2(50)
+  id NUMBER PRIMARY KEY
+  -- name VARCHAR2(50)
 );
 
 -- Create a table in the C##PROD_USER schema
@@ -15,7 +15,7 @@ CREATE TABLE C##PROD_USER.employee (
   id NUMBER PRIMARY KEY,
   name VARCHAR2(50),
   department_id NUMBER(4),
-  salary NUMBER,
+  -- salary NUMBER,
   FOREIGN KEY (department_id) REFERENCES C##PROD_USER.departments(id)
 );
 
