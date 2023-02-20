@@ -1,3 +1,55 @@
+CREATE OR REPLACE PROCEDURE compare_procedures (
+    dev_schema IN VARCHAR2,
+    prod_schema IN VARCHAR2
+)
+AUTHID CURRENT_USER
+AS
+BEGIN
+  FOR proc IN (SELECT object_name
+               FROM all_procedures
+               WHERE owner = dev_schema
+               MINUS
+               SELECT object_name
+               FROM all_procedures
+               WHERE owner = prod_schema)
+  LOOP
+    dbms_output.put_line('Procedure ' || proc.object_name || ' is in ' || dev_schema || ' but not in ' || prod_schema);
+  END LOOP;
+END;
+
+CREATE OR REPLACE PROCEDURE compare_functions (
+    dev_schema IN VARCHAR2,
+    prod_schema IN VARCHAR2
+)
+AUTHID CURRENT_USER
+AS
+BEGIN
+  FOR func IN (SELECT distinct name
+               FROM all_source
+               WHERE all_source.type = 'FUNCTION'
+               AND owner = dev_schema
+               MINUS
+               SELECT distinct name
+               FROM all_source
+               WHERE all_source.type = 'FUNCTION'
+               AND owner = prod_schema)
+  LOOP
+    dbms_output.put_line('Function ' || func.name || ' is in ' || dev_schema || ' but not in ' || prod_schema);
+  END LOOP;
+END;
+
+CREATE OR REPLACE PROCEDURE compare_indexes (dev_schema IN VARCHAR2, prod_schema IN VARCHAR2) AUTHID CURRENT_USER IS
+BEGIN
+  FOR i IN (SELECT index_name FROM all_indexes WHERE owner = dev_schema MINUS SELECT index_name FROM all_indexes WHERE owner = prod_schema) LOOP
+    DBMS_OUTPUT.PUT_LINE('Index ' || i.index_name || ' exists in ' || dev_schema || ' but not in ' || prod_schema);
+  END LOOP;
+
+  FOR i IN (SELECT index_name FROM all_indexes WHERE owner = prod_schema MINUS SELECT index_name FROM all_indexes WHERE owner = dev_schema) LOOP
+    DBMS_OUTPUT.PUT_LINE('Index ' || i.index_name || ' exists in ' || prod_schema || ' but not in ' || dev_schema);
+  END LOOP;
+END;
+
+
 CREATE OR REPLACE PROCEDURE compare_schemas (
     p_dev_schema VARCHAR2,
     p_prod_schema VARCHAR2
