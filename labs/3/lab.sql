@@ -1,4 +1,35 @@
-drop procedure COMPARE_PROCEDURES;
+CREATE OR REPLACE PROCEDURE search_for_circular_foreign_key_references(
+    schema_name IN VARCHAR2
+) AUTHID CURRENT_USER IS
+    v_count number;
+BEGIN
+    select count(*) into v_count from (with table_hierarchy as (select child_owner, child_table, parent_owner, parent_table
+                                         from (select owner             child_owner,
+                                                      table_name        child_table,
+                                                      r_owner           parent_owner,
+                                                      r_constraint_name constraint_name
+                                               from all_constraints
+                                               where constraint_type = 'R'
+                                                 and owner = schema_name)
+                                                  join (select owner parent_owner, constraint_name, table_name parent_table
+                                                        from all_constraints
+                                                        where constraint_type = 'P'
+                                                          and owner = schema_name)
+                                                       using (parent_owner, constraint_name))
+                select distinct child_owner, child_table
+                from (select *
+                      from table_hierarchy
+                      where (child_owner, child_table) in (select parent_owner, parent_table
+                                                           from table_hierarchy)) a
+                where connect_by_iscycle = 1
+                connect by nocycle (prior child_owner, prior child_table)
+                                       = ((parent_owner, parent_table))
+                );
+
+    if v_count > 0 then
+        DBMS_OUTPUT.PUT_LINE('Circular foreign key reference detected in ' || schema_name || ' schema.');
+    end if;
+END;
 
 CREATE OR REPLACE PROCEDURE compare_procedures (
     dev_schema IN VARCHAR2,
@@ -231,32 +262,6 @@ BEGIN
                 dbms_output.put_line('DROP TABLE ' || p_prod_schema || '.' || prod_tab_rec.table_name);
             END IF;
         END LOOP;
-END;
-
-CREATE OR REPLACE PROCEDURE search_for_circular_foreign_key_references(
-    schema_name IN VARCHAR2
-) AUTHID CURRENT_USER IS
-    nothing number;
-BEGIN
-    select count(*) into nothing from (SELECT a.table_name,
-           b.table_name parent_table
-    FROM all_constraints a, all_constraints b
-    WHERE a.constraint_type = 'R'
-    AND   b.constraint_type = 'P'
-    AND   a.owner = schema_name
-    AND   b.owner = schema_name
-    AND   a.r_owner = b.owner
-    AND   a.r_constraint_name = b.constraint_name
-    START WITH a.table_name = b.table_name
-    CONNECT BY PRIOR a.table_name = b.table_name);
-
-EXCEPTION
-  WHEN OTHERS THEN
-    IF SQLCODE = -1436 THEN
-      DBMS_OUTPUT.PUT_LINE('Circular foreign key reference detected in ' || schema_name ||' schema.');
-    ELSE
-      RAISE;
-    END IF;
 END;
 
 CREATE OR REPLACE PROCEDURE compare_schemas (
