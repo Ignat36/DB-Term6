@@ -53,3 +53,12 @@ CREATE TABLE C##DEV_USER.order_details (
   FOREIGN KEY (product_id) REFERENCES C##DEV_USER.products(product_id)
 );
 
+create or replace procedure C##DEV_USER.write_employees (
+    employee_name_a in varchar2,
+    employee_name_b in varchar2
+)
+as
+begin
+    dbms_output.put_line(employee_name_a || ' and ' || employee_name_b);
+end;
+
