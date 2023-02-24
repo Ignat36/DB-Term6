@@ -1,19 +1,19 @@
-CREATE OR REPLACE PROCEDURE search_for_circular_foreign_key_references(
-    schema_name IN VARCHAR2
-) AUTHID CURRENT_USER IS
+create or replace procedure search_for_circular_foreign_key_references(
+    schema_name in varchar2
+) authid current_user is
     v_count number;
-BEGIN
+begin
     select count(*) into v_count from (with table_hierarchy as (select child_owner, child_table, parent_owner, parent_table
                                          from (select owner             child_owner,
                                                       table_name        child_table,
                                                       r_owner           parent_owner,
                                                       r_constraint_name constraint_name
                                                from all_constraints
-                                               where constraint_type = 'R'
+                                               where constraint_type = 'r'
                                                  and owner = schema_name)
                                                   join (select owner parent_owner, constraint_name, table_name parent_table
                                                         from all_constraints
-                                                        where constraint_type = 'P'
+                                                        where constraint_type = 'p'
                                                           and owner = schema_name)
                                                        using (parent_owner, constraint_name))
                 select distinct child_owner, child_table
@@ -27,250 +27,250 @@ BEGIN
                 );
 
     if v_count > 0 then
-        DBMS_OUTPUT.PUT_LINE('Circular foreign key reference detected in ' || schema_name || ' schema.');
+        dbms_output.put_line('circular foreign key reference detected in ' || schema_name || ' schema.');
     end if;
-END;
+end;
 
-CREATE OR REPLACE PROCEDURE compare_procedures (
-    dev_schema IN VARCHAR2,
-    prod_schema IN VARCHAR2
+create or replace procedure compare_procedures (
+    dev_schema in varchar2,
+    prod_schema in varchar2
 )
-AUTHID CURRENT_USER
-AS
-  v_script VARCHAR2(4000);
-  v_count NUMBER;
-BEGIN
-  FOR proc IN (SELECT object_name
-               FROM all_procedures
-               WHERE owner = dev_schema
-               MINUS
-               SELECT object_name
-               FROM all_procedures
-               WHERE owner = prod_schema)
-  LOOP
+authid current_user
+as
+  v_script varchar2(4000);
+  v_count number;
+begin
+  for proc in (select object_name
+               from all_procedures
+               where owner = dev_schema
+               minus
+               select object_name
+               from all_procedures
+               where owner = prod_schema)
+  loop
     dbms_output.put_line('Procedure ' || proc.object_name || ' is in ' || dev_schema || ' but not in ' || prod_schema);
-  END LOOP;
+  end loop;
 
-    FOR dev_proc IN (SELECT object_name, dbms_metadata.get_ddl('PROCEDURE', object_name, dev_schema) AS proc_text FROM all_objects WHERE object_type = 'PROCEDURE' AND owner = dev_schema)
-    LOOP
+    for dev_proc in (select object_name, dbms_metadata.get_ddl('PROCEDURE', object_name, dev_schema) as proc_text from all_objects where object_type = 'PROCEDURE' and owner = dev_schema)
+    loop
         v_count := 0;
-        SELECT COUNT(*) INTO v_count FROM all_objects WHERE object_type = 'PROCEDURE' AND object_name = dev_proc.object_name AND owner = prod_schema;
-        IF v_count = 0 THEN
+        select count(*) into v_count from all_objects where object_type = 'PROCEDURE' and object_name = dev_proc.object_name and owner = prod_schema;
+        if v_count = 0 then
             v_script := dev_proc.proc_text;
-            v_script := REPLACE(v_script, dev_schema, prod_schema);
-            dbms_output.put_line('CREATE ' || v_script);
-        END IF;
-    END LOOP;
-
-    -- Drop unnecessary procedures from the prod schema
-    FOR prod_proc IN (SELECT object_name FROM all_objects WHERE object_type = 'PROCEDURE' AND owner = prod_schema) LOOP
-        v_count := 0;
-        SELECT COUNT(*) INTO v_count FROM all_objects WHERE object_type = 'PROCEDURE' AND object_name = prod_proc.object_name AND owner = dev_schema;
-        IF v_count = 0 THEN
-            dbms_output.put_line('DROP PROCEDURE ' || prod_schema || '.' || prod_proc.object_name);
-        END IF;
-    END LOOP;
-END;
-
-CREATE OR REPLACE PROCEDURE compare_functions (
-    dev_schema IN VARCHAR2,
-    prod_schema IN VARCHAR2
-)
-AUTHID CURRENT_USER
-AS
-    v_script VARCHAR2(4000);
-        v_count number;
-BEGIN
-  FOR func IN (SELECT distinct name
-               FROM all_source
-               WHERE all_source.type = 'FUNCTION'
-               AND owner = dev_schema
-               MINUS
-               SELECT distinct name
-               FROM all_source
-               WHERE all_source.type = 'FUNCTION'
-               AND owner = prod_schema)
-  LOOP
-    dbms_output.put_line('Function ' || func.name || ' is in ' || dev_schema || ' but not in ' || prod_schema);
-  END LOOP;
-
-    FOR dev_func IN (SELECT object_name, dbms_metadata.get_ddl('FUNCTION', object_name, dev_schema) AS func_text FROM all_objects WHERE object_type = 'FUNCTION' AND owner = dev_schema)
-    LOOP
-        v_count := 0;
-        SELECT COUNT(*) INTO v_count
-        FROM all_objects
-        WHERE object_type = 'FUNCTION' AND object_name = dev_func.object_name AND owner = prod_schema;
-        IF v_count = 0 THEN
-            v_script := dev_func.func_text;
-            v_script := REPLACE(v_script, dev_schema, prod_schema);
-            dbms_output.put_line('CREATE ' || v_script);
-        END IF;
-    END LOOP;
-    FOR prod_func IN (SELECT object_name FROM all_objects WHERE object_type = 'FUNCTION' AND owner = prod_schema) LOOP
-        v_count := 0;
-        SELECT COUNT(*) INTO v_count
-        FROM all_objects
-        WHERE object_type = 'FUNCTION' AND object_name = prod_func.object_name AND owner = dev_schema;
-        IF v_count = 0 THEN
-            dbms_output.put_line('DROP FUNCTION ' || prod_func.object_name);
-        END IF;
-    END LOOP;
-END;
-
-CREATE OR REPLACE PROCEDURE compare_indexes (dev_schema IN VARCHAR2, prod_schema IN VARCHAR2) AUTHID CURRENT_USER IS
-    v_script VARCHAR2(32767);
-    v_count PLS_INTEGER := 0;
-BEGIN
-  FOR i IN (SELECT index_name FROM all_indexes WHERE owner = dev_schema MINUS SELECT index_name FROM all_indexes WHERE owner = prod_schema) LOOP
-    DBMS_OUTPUT.PUT_LINE('Index ' || i.index_name || ' exists in ' || dev_schema || ' but not in ' || prod_schema);
-  END LOOP;
-
-  FOR i IN (SELECT index_name FROM all_indexes WHERE owner = prod_schema MINUS SELECT index_name FROM all_indexes WHERE owner = dev_schema) LOOP
-    DBMS_OUTPUT.PUT_LINE('Index ' || i.index_name || ' exists in ' || prod_schema || ' but not in ' || dev_schema);
-  END LOOP;
-
-    FOR dev_index IN (SELECT index_name, table_name, dbms_metadata.get_ddl('INDEX', index_name, dev_schema) AS index_text FROM all_indexes WHERE owner = dev_schema)
-    LOOP
-        v_script := '';
-        SELECT COUNT(*) INTO v_count FROM all_indexes WHERE owner = prod_schema AND index_name = dev_index.index_name;
-        IF v_count = 0 THEN
-            v_script := 'CREATE ' || REPLACE(DBMS_LOB.SUBSTR(dev_index.index_text, 32767), dev_schema, prod_schema);
+            v_script := replace(v_script, dev_schema, prod_schema);
             dbms_output.put_line(v_script);
-        END IF;
-    END LOOP;
-    FOR prod_index IN (SELECT index_name FROM all_indexes WHERE owner = prod_schema) LOOP
-        SELECT COUNT(*) INTO v_count FROM all_indexes WHERE owner = dev_schema AND index_name = prod_index.index_name;
-        IF v_count = 0 THEN
-            dbms_output.put_line('DROP INDEX ' || prod_schema || '.' || prod_index.index_name);
-        END IF;
-    END LOOP;
-END;
+        end if;
+    end loop;
 
-CREATE OR REPLACE PROCEDURE compare_tables (
-    p_dev_schema IN VARCHAR2,
-    p_prod_schema IN VARCHAR2
-) AUTHID CURRENT_USER IS
-    v_dev_table_name all_tables.table_name%TYPE;
-    v_table_count INTEGER;
-    v_dev_col_count INTEGER;
-    v_prod_col_count INTEGER;
+    -- drop unnecessary procedures from the prod schema
+    for prod_proc in (select object_name from all_objects where object_type = 'PROCEDURE' and owner = prod_schema) loop
+        v_count := 0;
+        select count(*) into v_count from all_objects where object_type = 'PROCEDURE' and object_name = prod_proc.object_name and owner = dev_schema;
+        if v_count = 0 then
+            dbms_output.put_line('drop procedure ' || prod_schema || '.' || prod_proc.object_name);
+        end if;
+    end loop;
+end;
 
-    v_script VARCHAR2(4000);
-BEGIN
-    FOR dev_tab_rec IN (SELECT table_name FROM all_tables WHERE owner = p_dev_schema) LOOP
+create or replace procedure compare_functions (
+    dev_schema in varchar2,
+    prod_schema in varchar2
+)
+authid current_user
+as
+    v_script varchar2(4000);
+        v_count number;
+begin
+  for func in (select distinct name
+               from all_source
+               where all_source.type = 'FUNCTION'
+               and owner = dev_schema
+               minus
+               select distinct name
+               from all_source
+               where all_source.type = 'FUNCTION'
+               and owner = prod_schema)
+  loop
+    dbms_output.put_line('function ' || func.name || ' is in ' || dev_schema || ' but not in ' || prod_schema);
+  end loop;
+
+    for dev_func in (select object_name, dbms_metadata.get_ddl('FUNCTION', object_name, dev_schema) as func_text from all_objects where object_type = 'FUNCTION' and owner = dev_schema)
+    loop
+        v_count := 0;
+        select count(*) into v_count
+        from all_objects
+        where object_type = 'FUNCTION' and object_name = dev_func.object_name and owner = prod_schema;
+        if v_count = 0 then
+            v_script := dev_func.func_text;
+            v_script := replace(v_script, dev_schema, prod_schema);
+            dbms_output.put_line(v_script);
+        end if;
+    end loop;
+    for prod_func in (select object_name from all_objects where object_type = 'FUNCTION' and owner = prod_schema) loop
+        v_count := 0;
+        select count(*) into v_count
+        from all_objects
+        where object_type = 'FUNCTION' and object_name = prod_func.object_name and owner = dev_schema;
+        if v_count = 0 then
+            dbms_output.put_line('drop function ' || prod_func.object_name);
+        end if;
+    end loop;
+end;
+
+create or replace procedure compare_indexes (dev_schema in varchar2, prod_schema in varchar2) authid current_user is
+    v_script varchar2(32767);
+    v_count pls_integer := 0;
+begin
+  for i in (select index_name from all_indexes where owner = dev_schema minus select index_name from all_indexes where owner = prod_schema) loop
+    dbms_output.put_line('index ' || i.index_name || ' exists in ' || dev_schema || ' but not in ' || prod_schema);
+  end loop;
+
+  for i in (select index_name from all_indexes where owner = prod_schema minus select index_name from all_indexes where owner = dev_schema) loop
+    dbms_output.put_line('index ' || i.index_name || ' exists in ' || prod_schema || ' but not in ' || dev_schema);
+  end loop;
+
+    for dev_index in (select index_name, table_name, dbms_metadata.get_ddl('INDEX', index_name, dev_schema) as index_text from all_indexes where owner = dev_schema)
+    loop
+        v_script := '';
+        select count(*) into v_count from all_indexes where owner = prod_schema and index_name = dev_index.index_name;
+        if v_count = 0 then
+            v_script := replace(dbms_lob.substr(dev_index.index_text, 32767), dev_schema, prod_schema);
+            dbms_output.put_line(v_script);
+        end if;
+    end loop;
+    for prod_index in (select index_name from all_indexes where owner = prod_schema) loop
+        select count(*) into v_count from all_indexes where owner = dev_schema and index_name = prod_index.index_name;
+        if v_count = 0 then
+            dbms_output.put_line('drop index ' || prod_schema || '.' || prod_index.index_name);
+        end if;
+    end loop;
+end;
+
+create or replace procedure compare_tables (
+    p_dev_schema in varchar2,
+    p_prod_schema in varchar2
+) authid current_user is
+    v_dev_table_name all_tables.table_name%type;
+    v_table_count integer;
+    v_dev_col_count integer;
+    v_prod_col_count integer;
+
+    v_script varchar2(4000);
+begin
+    for dev_tab_rec in (select table_name from all_tables where owner = p_dev_schema) loop
         v_dev_table_name := dev_tab_rec.table_name;
 
-        SELECT COUNT(*) INTO v_table_count
-        FROM all_tables
-        WHERE owner = p_prod_schema
-        AND table_name = v_dev_table_name;
+        select count(*) into v_table_count
+        from all_tables
+        where owner = p_prod_schema
+        and table_name = v_dev_table_name;
 
-        IF v_table_count = 0 THEN
-            DBMS_OUTPUT.PUT_LINE('Table ' || v_dev_table_name || ' is present in development schema but not in production schema.');
-        ELSE
-            -- Compare table structure
-            SELECT COUNT(*) INTO v_dev_col_count
-            FROM all_tab_cols
-            WHERE owner = p_dev_schema
-            AND table_name = v_dev_table_name;
+        if v_table_count = 0 then
+            dbms_output.put_line('Table ' || v_dev_table_name || ' is present in development schema but not in production schema.');
+        else
+            -- compare table structure
+            select count(*) into v_dev_col_count
+            from all_tab_cols
+            where owner = p_dev_schema
+            and table_name = v_dev_table_name;
 
-            SELECT COUNT(*) INTO v_prod_col_count
-            FROM all_tab_cols
-            WHERE owner = p_prod_schema
-            AND table_name = v_dev_table_name;
+            select count(*) into v_prod_col_count
+            from all_tab_cols
+            where owner = p_prod_schema
+            and table_name = v_dev_table_name;
 
-            IF v_dev_col_count > v_prod_col_count THEN
-                DBMS_OUTPUT.PUT_LINE('Table ' || v_dev_table_name || ' has ' || (v_dev_col_count - v_prod_col_count) || ' more columns in development schema.');
-            END IF;
+            if v_dev_col_count > v_prod_col_count then
+                dbms_output.put_line('Table ' || v_dev_table_name || ' has ' || (v_dev_col_count - v_prod_col_count) || ' more columns in development schema.');
+            end if;
 
-            FOR dev_col_rec IN (SELECT column_name FROM all_tab_cols WHERE owner = p_dev_schema AND table_name = v_dev_table_name) LOOP
-                SELECT COUNT(*) INTO v_table_count
-                FROM all_tab_cols
-                WHERE owner = p_prod_schema
-                AND table_name = v_dev_table_name
-                AND column_name = dev_col_rec.column_name;
+            for dev_col_rec in (select column_name from all_tab_cols where owner = p_dev_schema and table_name = v_dev_table_name) loop
+                select count(*) into v_table_count
+                from all_tab_cols
+                where owner = p_prod_schema
+                and table_name = v_dev_table_name
+                and column_name = dev_col_rec.column_name;
 
-                IF v_table_count = 0 THEN
-                    DBMS_OUTPUT.PUT_LINE('Column ' || dev_col_rec.column_name || ' in table ' || v_dev_table_name || ' is present in development schema but not in production schema.');
-                END IF;
-            END LOOP;
-        END IF;
-    END LOOP;
+                if v_table_count = 0 then
+                    dbms_output.put_line('Column ' || dev_col_rec.column_name || ' in table ' || v_dev_table_name || ' is present in development schema but not in production schema.');
+                end if;
+            end loop;
+        end if;
+    end loop;
 
-    FOR dev_tab_rec IN (SELECT table_name FROM all_tables WHERE owner = p_dev_schema) LOOP
+    for dev_tab_rec in (select table_name from all_tables where owner = p_dev_schema) loop
             v_dev_table_name := dev_tab_rec.table_name;
 
-            SELECT COUNT(*) INTO v_table_count
-            FROM all_tables
-            WHERE owner = p_prod_schema
-            AND table_name = v_dev_table_name;
+            select count(*) into v_table_count
+            from all_tables
+            where owner = p_prod_schema
+            and table_name = v_dev_table_name;
 
-            IF v_table_count = 0 THEN
-                -- Table does not exist in production schema, so generate CREATE TABLE statement
-                SELECT dbms_metadata.get_ddl('TABLE', v_dev_table_name, p_dev_schema) INTO v_script
-                FROM dual;
-                v_script := REPLACE(v_script, p_dev_schema, p_prod_schema);
+            if v_table_count = 0 then
+                -- table does not exist in production schema, so generate create table statement
+                select dbms_metadata.get_ddl('TABLE', v_dev_table_name, p_dev_schema) into v_script
+                from dual;
+                v_script := replace(v_script, p_dev_schema, p_prod_schema);
                 dbms_output.put_line(v_script);
-            ELSE
-                -- Compare table structure
-                SELECT COUNT(*) INTO v_dev_col_count
-                FROM all_tab_cols
-                WHERE owner = p_dev_schema
-                AND table_name = v_dev_table_name;
+            else
+                -- compare table structure
+                select count(*) into v_dev_col_count
+                from all_tab_cols
+                where owner = p_dev_schema
+                and table_name = v_dev_table_name;
 
-                SELECT COUNT(*) INTO v_prod_col_count
-                FROM all_tab_cols
-                WHERE owner = p_prod_schema
-                AND table_name = v_dev_table_name;
+                select count(*) into v_prod_col_count
+                from all_tab_cols
+                where owner = p_prod_schema
+                and table_name = v_dev_table_name;
 
-                IF v_dev_col_count > v_prod_col_count THEN
-                    -- Table has more columns in development schema, so generate ALTER TABLE statement to add missing columns
-                    v_script := 'ALTER TABLE ' || p_prod_schema || '.' || v_dev_table_name || ' ADD (';
-                    FOR dev_col_rec IN (SELECT column_name, data_type, data_length, data_precision, data_scale
-                                        FROM all_tab_cols WHERE owner = p_dev_schema AND table_name = v_dev_table_name) LOOP
-                        SELECT COUNT(*) INTO v_table_count
-                        FROM all_tab_cols
-                        WHERE owner = p_prod_schema
-                        AND table_name = v_dev_table_name
-                        AND column_name = dev_col_rec.column_name;
+                if v_dev_col_count > v_prod_col_count then
+                    -- table has more columns in development schema, so generate alter table statement to add missing columns
+                    v_script := 'alter table ' || p_prod_schema || '.' || v_dev_table_name || ' add (';
+                    for dev_col_rec in (select column_name, data_type, data_length, data_precision, data_scale
+                                        from all_tab_cols where owner = p_dev_schema and table_name = v_dev_table_name) loop
+                        select count(*) into v_table_count
+                        from all_tab_cols
+                        where owner = p_prod_schema
+                        and table_name = v_dev_table_name
+                        and column_name = dev_col_rec.column_name;
 
-                        IF v_table_count = 0 THEN
+                        if v_table_count = 0 then
                             v_script := v_script || dev_col_rec.column_name || ' ' || dev_col_rec.data_type;
-                            IF dev_col_rec.data_type IN ('VARCHAR2', 'NVARCHAR2', 'RAW') THEN
+                            if dev_col_rec.data_type in ('VARCHAR2', 'NVARCHAR2', 'RAW') then
                                 v_script := v_script || '(' || dev_col_rec.data_length || ')';
-                            ELSIF dev_col_rec.data_type IN ('NUMBER') THEN
+                            elsif dev_col_rec.data_type in ('NUMBER') then
                                 v_script := v_script || '(' || dev_col_rec.data_precision || ', ' || dev_col_rec.data_scale || ')';
-                            END IF;
+                            end if;
                             v_script := v_script || ', ';
-                        END IF;
-                    END LOOP;
-                    v_script := RTRIM(v_script, ', ') || ')';
+                        end if;
+                    end loop;
+                    v_script := rtrim(v_script, ', ') || ')';
                     dbms_output.put_line(v_script);
-                END IF;
-            END IF;
-        END LOOP;
+                end if;
+            end if;
+        end loop;
 
-        -- Check for tables that exist in the production schema but not in the development schema
-        FOR prod_tab_rec IN (SELECT table_name FROM all_tables WHERE owner = p_prod_schema) LOOP
-            SELECT COUNT(*) INTO v_table_count
-            FROM all_tables
-            WHERE owner = p_dev_schema
-            AND table_name = prod_tab_rec.table_name;
+        -- check for tables that exist in the production schema but not in the development schema
+        for prod_tab_rec in (select table_name from all_tables where owner = p_prod_schema) loop
+            select count(*) into v_table_count
+            from all_tables
+            where owner = p_dev_schema
+            and table_name = prod_tab_rec.table_name;
 
-            IF v_table_count = 0 THEN
-                -- Table does not exist in development schema, so generate DROP TABLE statement
-                dbms_output.put_line('DROP TABLE ' || p_prod_schema || '.' || prod_tab_rec.table_name);
-            END IF;
-        END LOOP;
-END;
+            if v_table_count = 0 then
+                -- table does not exist in development schema, so generate drop table statement
+                dbms_output.put_line('drop table ' || p_prod_schema || '.' || prod_tab_rec.table_name);
+            end if;
+        end loop;
+end;
 
-CREATE OR REPLACE PROCEDURE compare_schemas (
-    p_dev_schema VARCHAR2,
-    p_prod_schema VARCHAR2
+create or replace procedure compare_schemas (
+    p_dev_schema varchar2,
+    p_prod_schema varchar2
 )
-    AUTHID CURRENT_USER
-IS
-BEGIN
+    authid current_user
+is
+begin
 
     compare_procedures(p_dev_schema, p_prod_schema);
     compare_functions(p_dev_schema, p_prod_schema);
@@ -278,31 +278,31 @@ BEGIN
     compare_tables(p_dev_schema, p_prod_schema);
     search_for_circular_foreign_key_references(p_dev_schema);
     search_for_circular_foreign_key_references(p_prod_schema);
-END;
+end;
 
-CREATE OR REPLACE PROCEDURE drop_all_tables_in_schema (
-    p_schema_name VARCHAR2
+create or replace procedure drop_all_tables_in_schema (
+    p_schema_name varchar2
 )
-    AUTHID CURRENT_USER
-IS
-BEGIN
-    FOR tab_rec IN (SELECT table_name FROM all_tables WHERE owner = p_schema_name) LOOP
-        EXECUTE IMMEDIATE 'DROP TABLE ' || p_schema_name || '.' || tab_rec.table_name || ' CASCADE CONSTRAINTS';
-    END LOOP;
-END;
+    authid current_user
+is
+begin
+    for tab_rec in (select table_name from all_tables where owner = p_schema_name) loop
+        execute immediate 'drop table ' || p_schema_name || '.' || tab_rec.table_name || ' cascade constraints';
+    end loop;
+end;
 
-CREATE OR REPLACE PROCEDURE get_all_tables_in_schema(schema_name IN VARCHAR2) IS
-  table_count NUMBER;
-BEGIN
-  SELECT COUNT(*) INTO table_count FROM all_tables WHERE owner = schema_name;
+create or replace procedure get_all_tables_in_schema(schema_name in varchar2) is
+  table_count number;
+begin
+  select count(*) into table_count from all_tables where owner = schema_name;
 
-  IF table_count > 0 THEN
-    FOR t IN (SELECT table_name FROM all_tables WHERE owner = schema_name) LOOP
-      DBMS_OUTPUT.PUT_LINE(t.table_name);
-    END LOOP;
-  ELSE
-    DBMS_OUTPUT.PUT_LINE('No tables found in schema ' || schema_name);
-  END IF;
-END;
+  if table_count > 0 then
+    for t in (select table_name from all_tables where owner = schema_name) loop
+      dbms_output.put_line(t.table_name);
+    end loop;
+  else
+    dbms_output.put_line('No tables found in schema ' || schema_name);
+  end if;
+end;
 
 

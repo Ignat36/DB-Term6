@@ -1,53 +1,50 @@
--- Create the second schema
-CREATE USER c##prod_user IDENTIFIED BY prod_password;
-GRANT CONNECT, RESOURCE, CREATE VIEW, CREATE PROCEDURE TO c##prod_user;
+-- create the second schema
+create user c##prod_user identified by prod_password;
+grant connect, resource, create view, create procedure to c##prod_user;
 
-drop table C##PROD_USER.EMPLOYEE;
+drop table c##prod_user.employee;
 
--- Create a table in the C##DEV_USER schema that does not exist in the C##PROD_USER schema
-CREATE TABLE C##PROD_USER.departments (
-  id NUMBER PRIMARY KEY
-  -- name VARCHAR2(50)
+create table c##prod_user.departments (
+  id number primary key
+  -- name varchar2(50)
 );
 
--- Create a table in the C##PROD_USER schema
-CREATE TABLE C##PROD_USER.employee (
-  id NUMBER PRIMARY KEY,
-  name VARCHAR2(50),
-  department_id NUMBER(4),
-  -- salary NUMBER,
-  FOREIGN KEY (department_id) REFERENCES C##PROD_USER.departments(id)
+create table c##prod_user.employee (
+  id number primary key,
+  name varchar2(50),
+  department_id number(4),
+  -- salary number,
+  foreign key (department_id) references c##prod_user.departments(id)
 );
 
--- In the C##PROD_USER schema:
-CREATE TABLE C##PROD_USER.products (
-  product_id   NUMBER PRIMARY KEY,
-  product_name VARCHAR2(50) NOT NULL,
-  price        NUMBER NOT NULL,
-  quantity     NUMBER NOT NULL
+create table c##prod_user.products (
+  product_id   number primary key,
+  product_name varchar2(50) not null,
+  price        number not null,
+  quantity     number not null
 );
 
-CREATE TABLE C##PROD_USER.CUSTOMERS (
-  CUSTOMER_ID NUMBER(10) PRIMARY KEY,
-  CUSTOMER_NAME VARCHAR2(50) NOT NULL,
-  CUSTOMER_ADDRESS VARCHAR2(100) NOT NULL,
-  CUSTOMER_PHONE NUMBER(10) NOT NULL
+create table c##prod_user.customers (
+  customer_id number(10) primary key,
+  customer_name varchar2(50) not null,
+  customer_address varchar2(100) not null,
+  customer_phone number(10) not null
 );
 
-CREATE TABLE C##PROD_USER.orders (
-  order_id NUMBER PRIMARY KEY,
-  customer_id NUMBER,
-  order_date DATE,
-  FOREIGN KEY (customer_id) REFERENCES C##PROD_USER.customers(customer_id)
+create table c##prod_user.orders (
+  order_id number primary key,
+  customer_id number,
+  order_date date,
+  foreign key (customer_id) references c##prod_user.customers(customer_id)
 );
 
-CREATE TABLE C##PROD_USER.order_details (
-  order_detail_id NUMBER PRIMARY KEY,
-  order_id NUMBER,
-  product_id NUMBER,
-  quantity NUMBER,
-  FOREIGN KEY (order_id) REFERENCES C##PROD_USER.orders(order_id),
-  FOREIGN KEY (product_id) REFERENCES C##PROD_USER.products(product_id)
+create table c##prod_user.order_details (
+  order_detail_id number primary key,
+  order_id number,
+  product_id number,
+  quantity number,
+  foreign key (order_id) references c##prod_user.orders(order_id),
+  foreign key (product_id) references c##prod_user.products(product_id)
 );
 
 

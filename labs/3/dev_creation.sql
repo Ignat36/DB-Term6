@@ -1,59 +1,61 @@
--- Create the first schema
-CREATE USER c##dev_user IDENTIFIED BY dev_password;
-GRANT CONNECT, RESOURCE, CREATE VIEW, CREATE PROCEDURE TO c##dev_user;
--- Create a table in the C##DEV_USER schema that does not exist in the C##PROD_USER schema
-CREATE TABLE C##DEV_USER.departments (
-  id NUMBER PRIMARY KEY,
-  name VARCHAR2(50),
-  manager_id NUMBER
+-- create the first schema
+create user c##dev_user identified by dev_password;
+grant connect, resource, create view, create procedure to c##dev_user;
+-- create a table in the c##dev_user schema that does not exist in the c##prod_user schema
+create table c##dev_user.departments (
+  id number primary key,
+  name varchar2(50),
+  manager_id number
 );
 
--- Create a table in the C##DEV_USER schema
-CREATE TABLE C##DEV_USER.employee (
-  id NUMBER PRIMARY KEY,
-  name VARCHAR2(50),
-  department_id NUMBER(4),
-  salary NUMBER,
-  CONSTRAINT fk_department_id FOREIGN KEY (department_id) REFERENCES C##DEV_USER.departments(id)
+-- create a table in the c##dev_user schema
+create table c##dev_user.employee (
+  id number primary key,
+  name varchar2(50),
+  department_id number(4),
+  salary number,
+  constraint fk_department_id foreign key (department_id) references c##dev_user.departments(id)
 );
 
-alter table C##DEV_USER.departments
+alter table c##dev_user.departments
 add constraint fk_manager_id
 foreign key (manager_id)
-references C##DEV_USER.employee (id);
+references c##dev_user.employee (id);
 
-CREATE TABLE C##DEV_USER.CUSTOMERS (
-  CUSTOMER_ID NUMBER(10) PRIMARY KEY,
-  CUSTOMER_NAME VARCHAR2(50) NOT NULL,
-  CUSTOMER_ADDRESS VARCHAR2(100) NOT NULL,
-  CUSTOMER_PHONE NUMBER(10) NOT NULL
+create table c##dev_user.customers (
+  customer_id number(10) primary key,
+  customer_name varchar2(50) not null,
+  customer_address varchar2(100) not null,
+  customer_phone number(10) not null
 );
 
--- In the C##DEV_USER schema:
-CREATE TABLE C##DEV_USER.products (
-  product_id   NUMBER PRIMARY KEY,
-  product_name VARCHAR2(50) NOT NULL,
-  price        NUMBER NOT NULL,
-  quantity     NUMBER NOT NULL
+-- in the c##dev_user schema:
+create table c##dev_user.products (
+  product_id   number primary key,
+  product_name varchar2(50) not null,
+  price        number not null,
+  quantity     number not null
 );
 
-CREATE TABLE C##DEV_USER.orders (
-  order_id NUMBER PRIMARY KEY,
-  customer_id NUMBER,
-  order_date DATE,
-  FOREIGN KEY (customer_id) REFERENCES C##DEV_USER.customers(customer_id)
+create table c##dev_user.orders (
+  order_id number primary key,
+  customer_id number,
+  order_date date,
+  foreign key (customer_id) references c##dev_user.customers(customer_id)
 );
 
-CREATE TABLE C##DEV_USER.order_details (
-  order_detail_id NUMBER PRIMARY KEY,
-  order_id NUMBER,
-  product_id NUMBER,
-  quantity NUMBER,
-  FOREIGN KEY (order_id) REFERENCES C##DEV_USER.orders(order_id),
-  FOREIGN KEY (product_id) REFERENCES C##DEV_USER.products(product_id)
+create table c##dev_user.order_details (
+  order_detail_id number primary key,
+  order_id number,
+  product_id number,
+  quantity number,
+  foreign key (order_id) references c##dev_user.orders(order_id),
+  foreign key (product_id) references c##dev_user.products(product_id)
 );
 
-create or replace procedure C##DEV_USER.write_employees (
+drop procedure c##dev_user.write_employees;
+
+create or replace procedure c##dev_user.write_employees (
     employee_name_a in varchar2,
     employee_name_b in varchar2
 )
