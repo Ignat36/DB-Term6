@@ -1,5 +1,5 @@
 create or replace trigger tr_students_unique_id
-    before insert or update on students
+    before insert on students
     for each row
 declare
     v_count int;
@@ -14,7 +14,7 @@ begin
     end if;
 end;
 
-create sequence students_seq start with 1;
+-- create sequence students_seq start with 1;
 
 create or replace trigger tr_students_auto_increment_id
     before insert on students
@@ -27,15 +27,18 @@ begin
 end;
 
 create or replace trigger tr_groups_unique_name
-    before insert or update on groups
+    before insert on groups
     for each row
 declare
     v_count int;
     pragma autonomous_transaction;
 begin
+
     select count(*) into v_count
     from groups
-    where name = :new.name;
+    where groups.name = :new.name;
+
+    DBMS_OUTPUT.PUT_LINE(v_count);
 
     if v_count > 0 then
         raise_application_error(-20001, 'NAME должен быть уникальным');
@@ -43,10 +46,13 @@ begin
 end;
 
 create or replace trigger tr_delete_group_fk
-    before delete on groups
+    after delete on groups
     for each row
 begin
     delete from students where group_id = :old.id;
+exception
+    when others then
+      dbms_output.put_line('Error in tr_delete_group_fk: ' || sqlerrm);
 end;
 
 create or replace trigger tr_insert_student_fk
@@ -85,6 +91,7 @@ begin
         insert into students_log (username, date_of_action, operation, stud_id, stud_name, stud_group_id)
         values (v_username, v_date, v_operation, :old.id, :old.name, :old.group_id);
     end if;
+
 end;
 
 create or replace procedure restore_students_info_by_date (date_time in timestamp)
@@ -126,10 +133,15 @@ begin
 end;
 
 create or replace trigger tr_group_c_val_students_delete
-after delete on students
+before delete on students
 for each row
+declare
+    pragma autonomous_transaction ;
 begin
-  update groups set c_val = c_val - 1 where id = :old.group_id;
+    update groups set c_val = c_val - 1 where id = :old.group_id;
+exception
+    when others then
+      dbms_output.put_line('Error in tr_group_c_val_students_delete: ' || sqlerrm);
 end;
 
 
