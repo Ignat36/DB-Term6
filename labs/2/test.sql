@@ -22,12 +22,18 @@ select * from students;
 select * from groups;
 select * from students_log;
 
-call restore_students_info_by_date(to_timestamp('2023-02-16 16:55:28', 'YYYY-MM-DD HH24:MI:SS'));
+call restore_students_info_by_date(to_timestamp('2023-03-04 19:27:59', 'YYYY-MM-DD HH24:MI:SS'));
 
 insert into groups  values (7, '053506', 0); /
 
 delete from groups
-    where id = 2;
+    where id = 5;
+
+delete from students
+    where name like '%Игнат%';
+
+delete from students
+    where name like '%Спермач%';
 
 commit;
 insert into groups  values (8, '053502', 0);
