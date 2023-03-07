@@ -1,3 +1,76 @@
+CREATE OR REPLACE PROCEDURE check_fk_constraints (
+    dev_schema IN VARCHAR2,
+    prod_schema IN VARCHAR2
+)
+AS
+    CURSOR cur_fk_cons IS
+        SELECT DISTINCT cons.constraint_name, cols.table_name, cols.column_name
+        FROM all_constraints cons
+        JOIN all_cons_columns cols ON cons.owner = cols.owner AND cons.table_name = cols.table_name AND cons.constraint_name = cols.constraint_name
+        WHERE cons.constraint_type = 'R' AND cols.owner = dev_schema;
+
+    v_sql VARCHAR2(4000);
+    v_fk_cons_name VARCHAR2(30);
+    v_table_name VARCHAR2(30);
+    v_column_name VARCHAR2(30);
+BEGIN
+    FOR rec_fk_cons IN cur_fk_cons LOOP
+    begin
+        SELECT rec_fk_cons.constraint_name, rec_fk_cons.table_name, rec_fk_cons.column_name
+        INTO v_fk_cons_name, v_table_name, v_column_name
+        FROM dual
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM all_constraints cons
+            JOIN all_cons_columns cols ON cons.owner = cols.owner AND cons.table_name = cols.table_name AND cons.constraint_name = cols.constraint_name AND cols.column_name = v_column_name
+            WHERE cons.constraint_type = 'R' AND cols.owner = prod_schema AND cols.table_name = v_table_name AND cons.constraint_name = v_fk_cons_name
+        );
+
+        IF v_fk_cons_name IS NOT NULL THEN
+            -- Create foreign key constraint in prod_schema
+            v_sql := 'ALTER TABLE ' || prod_schema || '.' || v_table_name ||
+                     ' ADD CONSTRAINT ' || v_fk_cons_name || ' FOREIGN KEY (' || v_column_name || ') ' ||
+                     ' REFERENCES ' || prod_schema || '.' || substr(v_fk_cons_name, 4) ||
+                     ' ON DELETE CASCADE';
+            dbms_output.put_line(v_sql);
+        END IF;
+    EXCEPTION
+      WHEN OTHERS THEN
+        dbms_output.put_line('Error removing foreign key ' || rec_fk_cons.constraint_name || ' from table ' || rec_fk_cons.table_name || ': ' || SQLERRM);
+    end;
+    END LOOP;
+
+    FOR rec_fk_cons IN (
+        SELECT DISTINCT cons.constraint_name, cols.table_name, cols.column_name
+        FROM all_constraints cons
+        JOIN all_cons_columns cols ON cons.owner = cols.owner AND cons.table_name = cols.table_name AND cons.constraint_name = cols.constraint_name
+        WHERE cons.constraint_type = 'R' AND cols.owner = prod_schema
+    ) LOOP
+    begin
+        SELECT rec_fk_cons.constraint_name, rec_fk_cons.table_name, rec_fk_cons.column_name
+        INTO v_fk_cons_name, v_table_name, v_column_name
+        FROM dual
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM all_constraints cons
+            JOIN all_cons_columns cols ON cons.owner = cols.owner AND cons.table_name = cols.table_name AND cons.constraint_name = cols.constraint_name AND cols.column_name = v_column_name
+            WHERE cons.constraint_type = 'R' AND cols.owner = dev_schema AND cols.table_name = v_table_name AND cons.constraint_name = v_fk_cons_name
+        );
+
+        IF v_fk_cons_name IS NOT NULL THEN
+            -- Drop foreign key constraint from prod_schema
+            v_sql := 'ALTER TABLE ' || prod_schema || '.' || v_table_name ||
+                     ' DROP CONSTRAINT ' || v_fk_cons_name;
+            dbms_output.put_line(v_sql);
+        END IF;
+    EXCEPTION
+      WHEN OTHERS THEN
+        dbms_output.put_line('Error removing foreign key ' || rec_fk_cons.constraint_name || ' from table ' || rec_fk_cons.table_name || ': ' || SQLERRM);
+    end;
+    END LOOP;
+END;
+
+
 create or replace procedure search_for_circular_foreign_key_references(
     schema_name in varchar2
 ) authid current_user is
@@ -9,11 +82,11 @@ begin
                                                       r_owner           parent_owner,
                                                       r_constraint_name constraint_name
                                                from all_constraints
-                                               where constraint_type = 'r'
+                                               where constraint_type = 'R'
                                                  and owner = schema_name)
                                                   join (select owner parent_owner, constraint_name, table_name parent_table
                                                         from all_constraints
-                                                        where constraint_type = 'p'
+                                                        where constraint_type = 'P'
                                                           and owner = schema_name)
                                                        using (parent_owner, constraint_name))
                 select distinct child_owner, child_table
@@ -271,11 +344,11 @@ create or replace procedure compare_schemas (
     authid current_user
 is
 begin
-
     compare_procedures(p_dev_schema, p_prod_schema);
     compare_functions(p_dev_schema, p_prod_schema);
     compare_indexes(p_dev_schema, p_prod_schema);
     compare_tables(p_dev_schema, p_prod_schema);
+    check_fk_constraints(p_dev_schema, p_prod_schema);
     search_for_circular_foreign_key_references(p_dev_schema);
     search_for_circular_foreign_key_references(p_prod_schema);
 end;
