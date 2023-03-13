@@ -1,74 +1,74 @@
-CREATE OR REPLACE PROCEDURE check_fk_constraints (
-    dev_schema IN VARCHAR2,
-    prod_schema IN VARCHAR2
+create or replace procedure check_fk_constraints (
+    dev_schema in varchar2,
+    prod_schema in varchar2
 )
-AS
-    CURSOR cur_fk_cons IS
-        SELECT DISTINCT cons.constraint_name, cols.table_name, cols.column_name
-        FROM all_constraints cons
-        JOIN all_cons_columns cols ON cons.owner = cols.owner AND cons.table_name = cols.table_name AND cons.constraint_name = cols.constraint_name
-        WHERE cons.constraint_type = 'R' AND cols.owner = dev_schema;
+as
+    cursor cur_fk_cons is
+        select distinct cons.constraint_name, cols.table_name, cols.column_name
+        from all_constraints cons
+        join all_cons_columns cols on cons.owner = cols.owner and cons.table_name = cols.table_name and cons.constraint_name = cols.constraint_name
+        where cons.constraint_type = 'R' and cols.owner = dev_schema;
 
-    v_sql VARCHAR2(4000);
-    v_fk_cons_name VARCHAR2(30);
-    v_table_name VARCHAR2(30);
-    v_column_name VARCHAR2(30);
-BEGIN
-    FOR rec_fk_cons IN cur_fk_cons LOOP
+    v_sql varchar2(4000);
+    v_fk_cons_name varchar2(30);
+    v_table_name varchar2(30);
+    v_column_name varchar2(30);
+begin
+    for rec_fk_cons in cur_fk_cons loop
     begin
-        SELECT rec_fk_cons.constraint_name, rec_fk_cons.table_name, rec_fk_cons.column_name
-        INTO v_fk_cons_name, v_table_name, v_column_name
-        FROM dual
-        WHERE NOT EXISTS (
-            SELECT 1
-            FROM all_constraints cons
-            JOIN all_cons_columns cols ON cons.owner = cols.owner AND cons.table_name = cols.table_name AND cons.constraint_name = cols.constraint_name AND cols.column_name = v_column_name
-            WHERE cons.constraint_type = 'R' AND cols.owner = prod_schema AND cols.table_name = v_table_name AND cons.constraint_name = v_fk_cons_name
+        select rec_fk_cons.constraint_name, rec_fk_cons.table_name, rec_fk_cons.column_name
+        into v_fk_cons_name, v_table_name, v_column_name
+        from dual
+        where not exists (
+            select 1
+            from all_constraints cons
+            join all_cons_columns cols on cons.owner = cols.owner and cons.table_name = cols.table_name and cons.constraint_name = cols.constraint_name and cols.column_name = v_column_name
+            where cons.constraint_type = 'r' and cols.owner = prod_schema and cols.table_name = v_table_name and cons.constraint_name = v_fk_cons_name
         );
 
-        IF v_fk_cons_name IS NOT NULL THEN
-            -- Create foreign key constraint in prod_schema
-            v_sql := 'ALTER TABLE ' || prod_schema || '.' || v_table_name ||
-                     ' ADD CONSTRAINT ' || v_fk_cons_name || ' FOREIGN KEY (' || v_column_name || ') ' ||
-                     ' REFERENCES ' || prod_schema || '.' || substr(v_fk_cons_name, 4) ||
-                     ' ON DELETE CASCADE';
+        if v_fk_cons_name is not null then
+            -- create foreign key constraint in prod_schema
+            v_sql := 'alter table ' || prod_schema || '.' || v_table_name ||
+                     ' add constraint ' || v_fk_cons_name || ' foreign key (' || v_column_name || ') ' ||
+                     ' references ' || prod_schema || '.' || substr(v_fk_cons_name, 4) ||
+                     ' on delete cascade';
             dbms_output.put_line(v_sql);
-        END IF;
-    EXCEPTION
-      WHEN OTHERS THEN
-        dbms_output.put_line('Error removing foreign key ' || rec_fk_cons.constraint_name || ' from table ' || rec_fk_cons.table_name || ': ' || SQLERRM);
+        end if;
+    exception
+      when others then
+        dbms_output.put_line('Error removing foreign key ' || rec_fk_cons.constraint_name || ' from table ' || rec_fk_cons.table_name || ': ' || sqlerrm);
     end;
-    END LOOP;
+    end loop;
 
-    FOR rec_fk_cons IN (
-        SELECT DISTINCT cons.constraint_name, cols.table_name, cols.column_name
-        FROM all_constraints cons
-        JOIN all_cons_columns cols ON cons.owner = cols.owner AND cons.table_name = cols.table_name AND cons.constraint_name = cols.constraint_name
-        WHERE cons.constraint_type = 'R' AND cols.owner = prod_schema
-    ) LOOP
+    for rec_fk_cons in (
+        select distinct cons.constraint_name, cols.table_name, cols.column_name
+        from all_constraints cons
+        join all_cons_columns cols on cons.owner = cols.owner and cons.table_name = cols.table_name and cons.constraint_name = cols.constraint_name
+        where cons.constraint_type = 'R' and cols.owner = prod_schema
+    ) loop
     begin
-        SELECT rec_fk_cons.constraint_name, rec_fk_cons.table_name, rec_fk_cons.column_name
-        INTO v_fk_cons_name, v_table_name, v_column_name
-        FROM dual
-        WHERE NOT EXISTS (
-            SELECT 1
-            FROM all_constraints cons
-            JOIN all_cons_columns cols ON cons.owner = cols.owner AND cons.table_name = cols.table_name AND cons.constraint_name = cols.constraint_name AND cols.column_name = v_column_name
-            WHERE cons.constraint_type = 'R' AND cols.owner = dev_schema AND cols.table_name = v_table_name AND cons.constraint_name = v_fk_cons_name
+        select rec_fk_cons.constraint_name, rec_fk_cons.table_name, rec_fk_cons.column_name
+        into v_fk_cons_name, v_table_name, v_column_name
+        from dual
+        where not exists (
+            select 1
+            from all_constraints cons
+            join all_cons_columns cols on cons.owner = cols.owner and cons.table_name = cols.table_name and cons.constraint_name = cols.constraint_name and cols.column_name = v_column_name
+            where cons.constraint_type = 'R' and cols.owner = dev_schema and cols.table_name = v_table_name and cons.constraint_name = v_fk_cons_name
         );
 
-        IF v_fk_cons_name IS NOT NULL THEN
-            -- Drop foreign key constraint from prod_schema
-            v_sql := 'ALTER TABLE ' || prod_schema || '.' || v_table_name ||
-                     ' DROP CONSTRAINT ' || v_fk_cons_name;
+        if v_fk_cons_name is not null then
+            -- drop foreign key constraint from prod_schema
+            v_sql := 'alter table ' || prod_schema || '.' || v_table_name ||
+                     ' drop constraint ' || v_fk_cons_name;
             dbms_output.put_line(v_sql);
-        END IF;
-    EXCEPTION
-      WHEN OTHERS THEN
-        dbms_output.put_line('Error removing foreign key ' || rec_fk_cons.constraint_name || ' from table ' || rec_fk_cons.table_name || ': ' || SQLERRM);
+        end if;
+    exception
+      when others then
+        dbms_output.put_line('Error removing foreign key ' || rec_fk_cons.constraint_name || ' from table ' || rec_fk_cons.table_name || ': ' || sqlerrm);
     end;
-    END LOOP;
-END;
+    end loop;
+end;
 
 
 create or replace procedure search_for_circular_foreign_key_references(
@@ -194,25 +194,25 @@ create or replace procedure compare_indexes (dev_schema in varchar2, prod_schema
     v_script varchar2(32767);
     v_count pls_integer := 0;
 begin
-  for i in (select index_name from all_indexes where owner = dev_schema minus select index_name from all_indexes where owner = prod_schema) loop
+  for i in (select index_name from all_indexes where table_owner = dev_schema and owner = 'SYSTEM' minus select index_name from all_indexes where table_owner = prod_schema and owner = 'SYSTEM') loop
     dbms_output.put_line('index ' || i.index_name || ' exists in ' || dev_schema || ' but not in ' || prod_schema);
   end loop;
 
-  for i in (select index_name from all_indexes where owner = prod_schema minus select index_name from all_indexes where owner = dev_schema) loop
+  for i in (select index_name from all_indexes where table_owner = prod_schema and owner = 'SYSTEM' minus select index_name from all_indexes where table_owner = dev_schema and owner = 'SYSTEM') loop
     dbms_output.put_line('index ' || i.index_name || ' exists in ' || prod_schema || ' but not in ' || dev_schema);
   end loop;
 
-    for dev_index in (select index_name, table_name, dbms_metadata.get_ddl('INDEX', index_name, dev_schema) as index_text from all_indexes where owner = dev_schema)
+    for dev_index in (select index_name, table_name, dbms_metadata.get_ddl('INDEX', index_name, 'SYSTEM') as index_text from all_indexes where table_owner = dev_schema and owner = 'SYSTEM')
     loop
         v_script := '';
-        select count(*) into v_count from all_indexes where owner = prod_schema and index_name = dev_index.index_name;
+        select count(*) into v_count from all_indexes where table_owner = prod_schema and owner = 'SYSTEM' and index_name = dev_index.index_name;
         if v_count = 0 then
             v_script := replace(dbms_lob.substr(dev_index.index_text, 32767), dev_schema, prod_schema);
             dbms_output.put_line(v_script);
         end if;
     end loop;
-    for prod_index in (select index_name from all_indexes where owner = prod_schema) loop
-        select count(*) into v_count from all_indexes where owner = dev_schema and index_name = prod_index.index_name;
+    for prod_index in (select index_name from all_indexes where table_owner = prod_schema and owner = 'SYSTEM') loop
+        select count(*) into v_count from all_indexes where table_owner = dev_schema and owner = 'SYSTEM' and index_name = prod_index.index_name;
         if v_count = 0 then
             dbms_output.put_line('drop index ' || prod_schema || '.' || prod_index.index_name);
         end if;

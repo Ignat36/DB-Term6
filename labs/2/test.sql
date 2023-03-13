@@ -3,7 +3,7 @@ delete from groups;
 delete from students_log;
 
 commit;
-insert into groups (id, name, c_val) values (1, '053501', 0);
+insert into groups (id, name, c_val) values (7, '053501', 0);
 insert into groups (id, name, c_val) values (2, '053502', 0);
 insert into groups (id, name, c_val) values (3, '053503', 0);
 insert into groups (id, name, c_val) values (4, '053504', 0);
@@ -16,18 +16,19 @@ insert into students (id, name, group_id) values (2, 'Какой-то левый
 insert into students (id, name, group_id) values (3, 'Леха', 2);
 insert into students (id, name, group_id) values (4, 'Владик', 5);
 insert into students (id, name, group_id) values (5, 'Спермач', 6);
+insert into students (id, name, group_id) values (6, 'вывапро', 6);
 commit;
 
 select * from students;
 select * from groups;
 select * from students_log;
 
-call restore_students_info_by_date(to_timestamp('2023-03-04 19:27:59', 'YYYY-MM-DD HH24:MI:SS'));
+call restore_students_info_by_date(to_timestamp('2023-03-10 15:30:00', 'YYYY-MM-DD HH24:MI:SS'));
 
 insert into groups  values (7, '053506', 0); /
 
 delete from groups
-    where id = 5;
+    where id = 2;
 
 delete from students
     where name like '%Игнат%';

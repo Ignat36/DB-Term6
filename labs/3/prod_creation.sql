@@ -9,6 +9,14 @@ create table c##prod_user.departments (
   -- name varchar2(50)
 );
 
+
+create table c##prod_user.mytable1 (
+    id number,
+    name varchar2(50)
+);
+
+create index id5_test on c##prod_user.mytable1(name);
+
 create table c##prod_user.employee (
   id number primary key,
   name varchar2(50),

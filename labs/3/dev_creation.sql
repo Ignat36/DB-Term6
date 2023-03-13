@@ -8,6 +8,19 @@ create table c##dev_user.departments (
   manager_id number
 );
 
+drop table c##dev_user.mytable1;
+create table c##dev_user.mytable1 (
+    id number,
+    name varchar2(50),
+    second_name varchar2(50),
+    indexed_col number
+);
+
+select * from ALL_INDEXES where TABLE_OWNER like '%C##%';
+
+create unique index index4_test on c##dev_user.mytable1(indexed_col);
+create index id2_test on c##dev_user.mytable1(second_name);
+
 -- create a table in the c##dev_user schema
 create table c##dev_user.employee (
   id number primary key,
@@ -62,5 +75,14 @@ create or replace procedure c##dev_user.write_employees (
 as
 begin
     dbms_output.put_line(employee_name_a || ' and ' || employee_name_b);
+end;
+
+create or replace procedure c##dev_user.test_proc (
+    employee_name_a in varchar2,
+    employee_name_b in varchar2
+)
+as
+begin
+    select * from c##dev_user.mytable1;
 end;
 
