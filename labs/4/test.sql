@@ -65,5 +65,35 @@ BEGIN
     result := json_orm(json_data);
 END;
 
+DECLARE
+   json_data CLOB := '{
+      "query_type": "CREATE TABLE",
+      "table": "employees",
+      "columns": [
+         {"name": "id", "type": "NUMBER"},
+         {"name": "first_name", "type": "VARCHAR2(100)"},
+         {"name": "last_name", "type": "VARCHAR2(100)"},
+         {"name": "salary", "type": "NUMBER"}
+      ]
+   }';
+    result SYS_REFCURSOR;
+BEGIN
+    result := json_orm(json_data);
+END;
+
+DECLARE
+   json_data CLOB := '{
+      "query_type": "DROP TABLE",
+      "table": "employees"
+   }';
+    result SYS_REFCURSOR;
+BEGIN
+    result := json_orm(json_data);
+END;
+
+
+select * from TABLE1;
+select * from TABLE2;
+
 
 SELECT address, name FROM table1, table2 WHERE table1.age > 25 AND table1.id = table2.id AND name IN (SELECT name FROM table1 WHERE age > 30)
