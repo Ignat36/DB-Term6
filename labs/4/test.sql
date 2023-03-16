@@ -74,7 +74,8 @@ DECLARE
          {"name": "first_name", "type": "VARCHAR2(100)"},
          {"name": "last_name", "type": "VARCHAR2(100)"},
          {"name": "salary", "type": "NUMBER"}
-      ]
+      ],
+      "primary_keys": ["id"]
    }';
     result SYS_REFCURSOR;
 BEGIN
