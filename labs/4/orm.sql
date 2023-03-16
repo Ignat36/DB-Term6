@@ -45,29 +45,26 @@ BEGIN
             END IF;
         END IF;
 
+      OPEN v_cursor FOR v_sql;
+
     elsif v_query_type = 'INSERT' then
 
-        SELECT LISTAGG (column_name, ', ') WITHIN GROUP (ORDER BY column_name)
+        SELECT JSON_VALUE(json_data, '$.table') INTO v_tables FROM DUAL;
+
+        SELECT LISTAGG (column_name, ', ')
         INTO v_columns
         FROM JSON_TABLE (json_data,
                        '$.columns[*]' COLUMNS (column_name VARCHAR2 (1000) PATH '$')) j;
 
-        SELECT LISTAGG (table_name, ', ') WITHIN GROUP (ORDER BY table_name)
-          INTO v_tables
-          FROM JSON_TABLE (json_data,
-                           '$.tables[*]' COLUMNS (table_name VARCHAR2 (1000) PATH '$')) j;
-
-        SELECT LISTAGG (val, ', ') WITHIN GROUP (ORDER BY val)
+        SELECT LISTAGG (val, ', ')
          INTO v_values
          FROM JSON_TABLE (json_data, '$.values[*]' COLUMNS (val VARCHAR2 (4000) PATH '$')) j;
 
-          v_sql := 'INSERT INTO ' || v_tables || ' (' || v_columns || ') VALUES (' || v_values || ')';
+      v_sql := 'INSERT INTO ' || v_tables || ' (' || v_columns || ') VALUES (' || v_values || ')';
 
     elsif v_query_type = 'DELETE' then
-        SELECT LISTAGG (table_name, ', ') WITHIN GROUP (ORDER BY table_name)
-        INTO v_tables
-        FROM JSON_TABLE (json_data,
-                       '$.tables[*]' COLUMNS (table_name VARCHAR2 (1000) PATH '$')) j;
+
+        SELECT JSON_VALUE(json_data, '$.table') INTO v_tables FROM DUAL;
 
         SELECT LISTAGG (condition, ' AND ') WITHIN GROUP (ORDER BY condition)
           INTO v_filter_conditions
@@ -78,15 +75,13 @@ BEGIN
 
     elsif v_query_type = 'UPDATE' then
 
-          SELECT LISTAGG (table_name, ', ') WITHIN GROUP (ORDER BY table_name)
-          INTO v_tables
-          FROM JSON_TABLE (json_data,
-                           '$.tables[*]' COLUMNS (table_name VARCHAR2 (1000) PATH '$')) j;
+        SELECT JSON_VALUE(json_data, '$.table') INTO v_tables FROM DUAL;
 
-        SELECT LISTAGG (set_clause, ', ') WITHIN GROUP (ORDER BY set_clause)
-          INTO v_set_clause
-          FROM JSON_TABLE (json_data,
-                           '$.set[*]' COLUMNS (set_clause VARCHAR2 (4000) PATH '$')) j;
+        SELECT LISTAGG (column_name || ' = ' || val, ', ') WITHIN GROUP (ORDER BY column_name)
+         INTO v_set_clause
+         FROM JSON_TABLE (json_data,
+                          '$.set[*]' COLUMNS (column_name VARCHAR2 (1000) PATH '$[0]',
+                                              val VARCHAR2 (1000) PATH '$[1]')) j;
 
         SELECT LISTAGG (condition, ' AND ') WITHIN GROUP (ORDER BY condition)
           INTO v_filter_conditions
@@ -101,8 +96,6 @@ BEGIN
     end if;
 
     DBMS_OUTPUT.PUT_LINE(v_sql);
-
-    OPEN v_cursor FOR v_sql;
 
     RETURN v_cursor;
 

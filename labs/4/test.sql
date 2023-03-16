@@ -34,9 +34,7 @@ DECLARE
     json_data CLOB := '{
       "query_type": "UPDATE",
       "table": "table1",
-      "values": [
-        ["age", "35"]
-      ],
+      "set": [ ["age", "100"], ["name", "''Ignat''"]],
       "filter_conditions": ["id = 1"]
     }';
     result SYS_REFCURSOR;
@@ -48,9 +46,8 @@ DECLARE
     json_data CLOB := '{
       "query_type": "INSERT",
       "table": "table1",
-      "values": [
-        ["1", "John", "30"]
-      ]
+      "columns": ["id", "name", "age"],
+      "values": ["1", "''John''", "30"]
     }';
     result SYS_REFCURSOR;
 BEGIN
