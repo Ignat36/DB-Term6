@@ -1,11 +1,25 @@
 DECLARE
     v_address VARCHAR2(100);
     v_name VARCHAR2(100);
-    json_data CLOB := '{"query_type": "SELECT",
-                      "columns": ["name", "address"],
-                      "tables": ["table1", "table2"],
-                      "join_conditions": ["table1.id = table2.id", "table1.age > 25"],
-                      "filter_conditions": ["name IN (SELECT name FROM table1 WHERE age > 30)"]}';    result SYS_REFCURSOR;
+    json_data CLOB := '{
+                          "query_type": "SELECT",
+                          "columns": ["name", "address"],
+                          "tables": ["table1", "table2"],
+                          "join_conditions": ["table1.id = table2.id", "table1.age > 25"],
+                          "filter_conditions": [
+                            {
+			                  "condition_type": "plain",
+                              "condition": "name = ''John''",
+                              "operator": "AND"
+                            },
+                            {
+			                  "condition_type": "included",
+                              "condition": "{ёquery_typeё: ёSELECTё, ёcolumnё: ёnameё, ёtablesё: [ёtable1ё], ёfilter_conditionsё: [ { ёcondition_typeё: ёplainё, ёconditionё: ёage > 30ё, ёoperatorё: ёANDё} ], ёoperatorё: ёINё, ёsearch_colё: ёnameё}",
+                              "operator": "OR"
+                            }
+                          ]
+                        }';
+    result SYS_REFCURSOR;
 BEGIN
     result := json_orm(json_data);
 
@@ -70,8 +84,12 @@ DECLARE
       "query_type": "CREATE TABLE",
       "table": "employees",
       "columns": [
-         {"name": "id", "type": "NUMBER"},
-         {"name": "first_name", "type": "VARCHAR2(100)"},
+         {
+            "name": "id", "type": "NUMBER"
+         },
+         {
+            "name": "first_name", "type": "VARCHAR2(100)"
+         },
          {"name": "last_name", "type": "VARCHAR2(100)"},
          {"name": "salary", "type": "NUMBER"}
       ],
