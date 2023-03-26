@@ -3,7 +3,7 @@ DECLARE
     v_name VARCHAR2(100);
     json_data CLOB := '{
                           "query_type": "SELECT",
-                          "columns": ["name", "address"],
+                          "columns": ["address", "name"],
                           "tables": ["table1", "table2"],
                           "join_conditions": ["table1.id = table2.id", "table1.age > 25"],
                           "filter_conditions": [
@@ -15,7 +15,7 @@ DECLARE
                             {
 			                  "condition_type": "included",
                               "condition": "{ёquery_typeё: ёSELECTё, ёcolumnё: ёnameё, ёtablesё: [ёtable1ё], ёfilter_conditionsё: [ { ёcondition_typeё: ёplainё, ёconditionё: ёage > 30ё, ёoperatorё: ёANDё} ], ёoperatorё: ёINё, ёsearch_colё: ёnameё}",
-                              "operator": "OR"
+                              "operator": "AND"
                             }
                           ]
                         }';
@@ -30,6 +30,9 @@ BEGIN
     END LOOP;
 
 END;
+
+select * from table1;
+select * from table2;
 
 DECLARE
     json_data CLOB := '{
