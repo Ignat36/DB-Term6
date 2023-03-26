@@ -57,3 +57,103 @@ begin
     rollback_clients_by_date(date_time);
     rollback_products_by_date(date_time);
 end;
+
+create or replace procedure create_report(t_begin in timestamp, t_end in timestamp)
+as
+    v_result varchar2(4000);
+    i_count number;
+    u_count number;
+    d_count number;
+begin
+
+    v_result :=    '<table>
+                      <tr>
+                        <th>Table</th>
+                        <th>INSERT</th>
+                        <th>UPDATE</th>
+                        <th>DELETE</th>
+                      </tr>
+                      ';
+
+    select count(*) into u_count
+    from CLIENTS_HISTORY
+    where CHANGE_DATE between t_begin and t_end
+    and CHANGE_TYPE = 'UPDATE';
+
+    select count(*) into i_count
+    from CLIENTS_HISTORY
+    where CHANGE_DATE between t_begin and t_end
+    and CHANGE_TYPE = 'INSERT';
+
+    select count(*) into d_count
+    from CLIENTS_HISTORY
+    where CHANGE_DATE between t_begin and t_end
+    and CHANGE_TYPE = 'DELETE';
+
+    i_count := i_count - u_count;
+    d_count := d_count - u_count;
+
+    v_result := v_result || '<tr>
+                               <td>Clients</td>
+                               <td>' || i_count || '</td>
+                               <td>' || u_count || '</td>
+                               <td>' || d_count ||'</td>
+                             </tr>
+                              ';
+
+    select count(*) into u_count
+    from PRODUCTS_HISTORY
+    where CHANGE_DATE between t_begin and t_end
+    and CHANGE_TYPE = 'UPDATE';
+
+    select count(*) into i_count
+    from PRODUCTS_HISTORY
+    where CHANGE_DATE between t_begin and t_end
+    and CHANGE_TYPE = 'INSERT';
+
+    select count(*) into d_count
+    from PRODUCTS_HISTORY
+    where CHANGE_DATE between t_begin and t_end
+    and CHANGE_TYPE = 'DELETE';
+
+    i_count := i_count - u_count;
+    d_count := d_count - u_count;
+
+    v_result := v_result || '<tr>
+                               <td>Products</td>
+                               <td>' || i_count || '</td>
+                               <td>' || u_count || '</td>
+                               <td>' || d_count ||'</td>
+                             </tr>
+                              ';
+
+    select count(*) into u_count
+    from ORDERS_HISTORY
+    where CHANGE_DATE between t_begin and t_end
+    and CHANGE_TYPE = 'UPDATE';
+
+    select count(*) into i_count
+    from ORDERS_HISTORY
+    where CHANGE_DATE between t_begin and t_end
+    and CHANGE_TYPE = 'INSERT';
+
+    select count(*) into d_count
+    from ORDERS_HISTORY
+    where CHANGE_DATE between t_begin and t_end
+    and CHANGE_TYPE = 'DELETE';
+
+    i_count := i_count - u_count;
+    d_count := d_count - u_count;
+
+    v_result := v_result || '<tr>
+                               <td>Orders</td>
+                               <td>' || i_count || '</td>
+                               <td>' || u_count || '</td>
+                               <td>' || d_count ||'</td>
+                             </tr>
+                              ';
+
+    v_result := v_result || '</table>';
+    DBMS_OUTPUT.PUT_LINE(v_result);
+
+end;
