@@ -1,16 +1,22 @@
 create or replace FUNCTION json_orm(json_data CLOB) RETURN SYS_REFCURSOR IS
   v_query_type VARCHAR2(100);
-  v_columns VARCHAR2(4000);
-  v_tables VARCHAR2(4000);
-  v_join_conditions VARCHAR2(4000);
-  v_filter_conditions VARCHAR2(4000);
-  v_set_clause VARCHAR2(4000);
-  v_values VARCHAR2(4000);
-  v_pks VARCHAR2(4000);
+  v_columns VARCHAR2(8000);
+  v_tables VARCHAR2(8000);
+  v_join_conditions VARCHAR2(8000);
+  v_filter_conditions VARCHAR2(8000);
+  v_set_clause VARCHAR2(8000);
+  v_values VARCHAR2(8000);
+  v_pks VARCHAR2(8000);
   v_sql VARCHAR2(8000);
+  f_q_type VARCHAR2(8000);
+  f_cond VARCHAR2(8000);
+  f_operator VARCHAR2(8000);
   v_cursor SYS_REFCURSOR;
+  v_json_data JSON_OBJECT_T;
+  v_temp_obj JSON_OBJECT_T;
+  v_json_array JSON_ARRAY_T;
 
-  FUNCTION process_select_condition(json_select CLOB) RETURN VARCHAR2
+  FUNCTION process_select_condition(v_nest_json_data JSON_OBJECT_T) RETURN VARCHAR2
   IS
     v_type_check varchar2(100);
     v_col VARCHAR2(4000);
@@ -19,48 +25,57 @@ create or replace FUNCTION json_orm(json_data CLOB) RETURN SYS_REFCURSOR IS
     v_inclusion_operator VARCHAR2(4000);
     v_search_column VARCHAR2(4000);
     v_res_sql VARCHAR2(4000);
+    v_n_temp_obj JSON_OBJECT_T;
+    v_n_json_array JSON_ARRAY_T;
+    f_n_q_type VARCHAR2(8000);
+    f_n_cond VARCHAR2(8000);
+    f_n_operator VARCHAR2(8000);
   BEGIN
 
-      select JSON_VALUE(json_select, '$.query_type') into v_type_check from DUAL;
+      v_type_check := v_nest_json_data.get_string('query_type');
 
       if v_type_check = 'SELECT' then
 
-        select LISTAGG(table_name, ', ')
-            into v_tab
-            from JSON_TABLE(json_select, '$.tables[*]' COLUMNS (table_name VARCHAR2(1000) PATH '$')) j;
+          v_n_json_array := v_nest_json_data.get_array('tables');
 
-        select JSON_VALUE(json_select, '$.column') into v_col from DUAL;
-        select JSON_VALUE(json_select, '$.operator') into v_inclusion_operator from DUAL;
-        select JSON_VALUE(json_select, '$.search_col') into v_search_column from DUAL;
-
-        v_filter_cond := '';
-        for i in (select f_q_type, f_cond, f_operator from JSON_TABLE (json_select,
-                           '$.filter_conditions[*]' COLUMNS (
-                              f_q_type VARCHAR2(100) PATH '$.condition_type',
-                              f_cond VARCHAR2(4000) PATH '$.condition',
-                              f_operator VARCHAR2(100) PATH '$.operator')
-                           ) j)
-        loop
-
-            if i.f_q_type = 'plain' then
-
-                if v_filter_cond is null then
-                    v_filter_cond := i.f_cond;
-                else
-                    v_filter_cond := v_filter_cond || ' ' || i.f_operator || ' ' || i.f_cond;
-                end if;
-
-            elsif i.f_q_type = 'included' then
-
-                if v_filter_cond is null then
-                    v_filter_cond := process_select_condition(replace(i.f_cond, 'ё', '"'));
-                else
-                    v_filter_cond := v_filter_cond || ' ' || i.f_operator || ' (' || process_select_condition(replace(i.f_cond, 'ё', '"')) || ')';
-                end if;
-
+          for j in 0..v_n_json_array.GET_SIZE()-1 loop
+            if v_tab is null then
+                v_tab := v_n_json_array.get_string(j);
+            else
+                v_tab := v_columns || ', ' || v_n_json_array.get_string(j);
             end if;
+          end loop;
 
-        end loop;
+          v_col := v_nest_json_data.get_string('column');
+          v_inclusion_operator := v_nest_json_data.get_string('operator');
+          v_search_column := v_nest_json_data.get_string('search_col');
+
+          v_n_json_array := v_nest_json_data.get_array('filter_conditions');
+
+          for j in 0..v_n_json_array.GET_SIZE()-1 loop
+              v_n_temp_obj := treat(v_n_json_array.get(j) as JSON_OBJECT_T);
+              f_n_q_type := v_n_temp_obj.get_string('condition_type');
+              f_n_operator :=  v_n_temp_obj.get_string('operator');
+
+              if f_n_q_type = 'plain' then
+                    f_n_cond :=v_n_temp_obj.get_string('condition');
+                    if v_filter_cond is null then
+                        v_filter_cond := f_n_cond;
+                    else
+                        v_filter_cond := v_filter_cond || ' ' || f_operator || ' ' || f_n_cond;
+                    end if;
+
+                elsif f_n_q_type = 'included' then
+                    f_n_cond := process_select_condition(treat(v_n_temp_obj.get('condition') as JSON_OBJECT_T));
+                    if v_filter_cond is null then
+                        v_filter_cond := f_n_cond;
+                    else
+                        v_filter_cond := v_filter_cond || ' ' || f_operator || ' (' || f_n_cond || ')';
+                    end if;
+
+                end if;
+
+          end loop;
 
         -- Build the dynamic SQL statement
         v_res_sql := 'SELECT ' || v_col || ' FROM ' || v_tab;
@@ -73,50 +88,70 @@ create or replace FUNCTION json_orm(json_data CLOB) RETURN SYS_REFCURSOR IS
   END;
 
 BEGIN
+
+  v_json_data := JSON_OBJECT_T.parse(json_data);
+
   -- Extract values from JSON data
-  select JSON_VALUE(json_data, '$.query_type') into v_query_type from DUAL;
+  v_query_type := v_json_data.get_string('query_type');
 
   if v_query_type = 'SELECT' then
 
-      select LISTAGG(column_name, ', ')
-        into v_columns
-        from JSON_TABLE(json_data, '$.columns[*]' COLUMNS (column_name VARCHAR2(1000) PATH '$')) j;
+      v_json_array := v_json_data.get_array('columns');
 
-        select LISTAGG(table_name, ', ')
-            into v_tables
-            from JSON_TABLE(json_data, '$.tables[*]' COLUMNS (table_name VARCHAR2(1000) PATH '$')) j;
+      for i in 0..v_json_array.GET_SIZE()-1 loop
+        if v_columns is null then
+            v_columns := v_json_array.get_string(i);
+        else
+            v_columns := v_columns || ', ' || v_json_array.get_string(i);
+        end if;
+      end loop;
 
-        select LISTAGG(table_name, ' AND ')
-            into v_join_conditions
-            from JSON_TABLE(json_data, '$.join_conditions[*]' COLUMNS (table_name VARCHAR2(1000) PATH '$')) j;
+      v_json_array := v_json_data.get_array('tables');
 
+      for i in 0..v_json_array.GET_SIZE()-1 loop
+        if v_tables is null then
+            v_tables := v_json_array.get_string(i);
+        else
+            v_tables := v_tables || ', ' || v_json_array.get_string(i);
+        end if;
+      end loop;
 
-        for i in (select f_q_type, f_cond, f_operator from JSON_TABLE (json_data,
-                           '$.filter_conditions[*]' COLUMNS (
-                              f_q_type VARCHAR2(100) PATH '$.condition_type',
-                              f_cond VARCHAR2(4000) PATH '$.condition',
-                              f_operator VARCHAR2(100) PATH '$.operator')
-                           ) j)
-        loop
+      v_json_array := v_json_data.get_array('join_conditions');
 
-            if i.f_q_type = 'plain' then
+      for i in 0..v_json_array.GET_SIZE()-1 loop
+        if v_join_conditions is null then
+            v_join_conditions := v_json_array.get_string(i);
+        else
+            v_join_conditions := v_join_conditions || ' AND ' || v_json_array.get_string(i);
+        end if;
+      end loop;
 
+      v_json_array := v_json_data.get_array('filter_conditions');
+
+      for i in 0..v_json_array.GET_SIZE()-1 loop
+          v_temp_obj := treat(v_json_array.get(i) as JSON_OBJECT_T);
+          f_q_type := v_temp_obj.get_string('condition_type');
+          f_operator :=  v_temp_obj.get_string('operator');
+
+          if f_q_type = 'plain' then
+                f_cond := v_temp_obj.get_string('condition');
                 if v_filter_conditions is null then
-                    v_filter_conditions := i.f_cond;
+                    v_filter_conditions := f_cond;
                 else
-                    v_filter_conditions := v_filter_conditions || ' ' || i.f_operator || ' ' || i.f_cond;
+                    v_filter_conditions := v_filter_conditions || ' ' || f_operator || ' ' || f_cond;
                 end if;
 
-            elsif i.f_q_type = 'included' then
-
+            elsif f_q_type = 'included' then
+                f_cond := process_select_condition(treat(v_temp_obj.get('condition') as JSON_OBJECT_T));
                 if v_filter_conditions is null then
-                    v_filter_conditions := process_select_condition(replace(i.f_cond, 'ё', '"'));
+                    v_filter_conditions := f_cond;
                 else
-                    v_filter_conditions := v_filter_conditions || ' ' || i.f_operator || ' (' || process_select_condition(replace(i.f_cond, 'ё', '"')) || ')';
+                    v_filter_conditions := v_filter_conditions || ' ' || f_operator || ' (' || f_cond || ')';
                 end if;
 
             end if;
-        end loop;
+
+      end loop;
 
         -- Build the dynamic SQL statement
         v_sql := 'SELECT ' || v_columns || ' FROM ' || v_tables;

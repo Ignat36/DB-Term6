@@ -14,7 +14,7 @@ DECLARE
                             },
                             {
 			                  "condition_type": "included",
-                              "condition": "{ёquery_typeё: ёSELECTё, ёcolumnё: ёnameё, ёtablesё: [ёtable1ё], ёfilter_conditionsё: [ { ёcondition_typeё: ёplainё, ёconditionё: ёage > 30ё, ёoperatorё: ёANDё} ], ёoperatorё: ёINё, ёsearch_colё: ёnameё}",
+                              "condition": {"query_type": "SELECT", "column": "name", "tables": ["table1"], "filter_conditions": [ { "condition_type": "plain", "condition": "age > 30", "operator": "AND"} ], "operator": "IN", "search_col": "name"},
                               "operator": "AND"
                             }
                           ]
@@ -30,6 +30,8 @@ BEGIN
     END LOOP;
 
 END;
+
+SELECT address, name FROM table1, table2 WHERE table1.id = table2.id AND table1.age > 25 AND name = 'John' AND (name IN (SELECT name FROM table1 WHERE age > 30))
 
 select * from table1;
 select * from table2;
