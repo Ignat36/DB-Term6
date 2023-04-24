@@ -12,15 +12,14 @@ FOR EACH ROW
 DECLARE
   v_id number;
 BEGIN
-  v_id := HISTORY_SEQ.nextval;
   INSERT INTO clients_history (action_id, client_id, first_name, last_name, email, phone_number, change_date, change_type)
-  VALUES (v_id, :OLD.client_id, :OLD.first_name, :OLD.last_name, :OLD.email, :OLD.phone_number, SYSDATE, 'DELETE');
+  VALUES (HISTORY_SEQ.nextval, :OLD.client_id, :OLD.first_name, :OLD.last_name, :OLD.email, :OLD.phone_number, SYSDATE, 'DELETE');
 
   INSERT INTO clients_history (action_id, client_id, first_name, last_name, email, phone_number, change_date, change_type)
-  VALUES (v_id, :OLD.client_id, :OLD.first_name, :OLD.last_name, :OLD.email, :OLD.phone_number, SYSDATE, 'UPDATE');
+  VALUES (HISTORY_SEQ.nextval, :OLD.client_id, :OLD.first_name, :OLD.last_name, :OLD.email, :OLD.phone_number, SYSDATE, 'UPDATE');
 
   INSERT INTO clients_history (action_id, client_id, first_name, last_name, email, phone_number, change_date, change_type)
-  VALUES (v_id, :NEW.client_id, :NEW.first_name, :NEW.last_name, :NEW.email, :NEW.phone_number, SYSDATE, 'INSERT');
+  VALUES (HISTORY_SEQ.nextval, :NEW.client_id, :NEW.first_name, :NEW.last_name, :NEW.email, :NEW.phone_number, SYSDATE, 'INSERT');
 END;
 
 CREATE OR REPLACE TRIGGER tr_clients_delete

@@ -3,18 +3,13 @@ DECLARE
     v_name VARCHAR2(100);
     json_data CLOB := '{
                           "query_type": "SELECT",
-                          "columns": ["address", "name"],
-                          "tables": ["table1", "table2"],
-                          "join_conditions": ["table1.id = table2.id", "table1.age > 25"],
+                          "columns": ["*"],
+                          "tables": ["table1"],
+                          "join_conditions": [],
                           "filter_conditions": [
                             {
-			                  "condition_type": "plain",
-                              "condition": "name = ''John''",
-                              "operator": "AND"
-                            },
-                            {
 			                  "condition_type": "included",
-                              "condition": {"query_type": "SELECT", "column": "name", "tables": ["table1"], "filter_conditions": [ { "condition_type": "plain", "condition": "age > 30", "operator": "AND"} ], "operator": "IN", "search_col": "name"},
+                              "condition": {"query_type": "SELECT", "column": "id", "tables": ["table2"], "filter_conditions": [ { "condition_type": "plain", "condition": "first_name like ''%a%''", "operator": "AND"}, { "condition_type": "plain", "condition": "id between 2 and 4", "operator": "AND"} ], "operator": "IN", "search_col": "id"},
                               "operator": "AND"
                             }
                           ]
@@ -23,11 +18,11 @@ DECLARE
 BEGIN
     result := json_orm(json_data);
 
-    LOOP
+    /*LOOP
         FETCH result INTO v_address, v_name;
         EXIT WHEN result%NOTFOUND;
         DBMS_OUTPUT.PUT_LINE('Address: ' || v_address || ', Name: ' || v_name);
-    END LOOP;
+    END LOOP;*/
 
 END;
 
@@ -84,19 +79,20 @@ BEGIN
     result := json_orm(json_data);
 END;
 
+CREATE TABLE table2 (id NUMBER, val NUMBER);
+CREATE TABLE table1 (id NUMBER, val NUMBER);
+
 DECLARE
    json_data CLOB := '{
       "query_type": "CREATE TABLE",
-      "table": "employees",
+      "table": "table2",
       "columns": [
          {
             "name": "id", "type": "NUMBER"
          },
          {
-            "name": "first_name", "type": "VARCHAR2(100)"
-         },
-         {"name": "last_name", "type": "VARCHAR2(100)"},
-         {"name": "salary", "type": "NUMBER"}
+            "name": "val", "type": "NUMBER"
+         }
       ],
       "primary_keys": ["id"]
    }';

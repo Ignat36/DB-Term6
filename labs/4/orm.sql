@@ -166,7 +166,7 @@ BEGIN
             end if;
         end if;
 
-        open v_cursor for v_sql;
+        -- open v_cursor for v_sql;
 
     elsif v_query_type = 'INSERT' then
 
